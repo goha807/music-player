@@ -15,6 +15,7 @@ const app = {
     favorites: JSON.parse(localStorage.getItem('vt_favs_v2')) || [],
     currentTrack: null,
     progressInterval: null,
+    savedVolume: localStorage.getItem('vt_volume') || 50, // Збережена гучність
 
     init: function() {
         // Завантаження YouTube API
@@ -31,6 +32,8 @@ const app = {
         // Повзунок перемотки
         const progressBar = document.getElementById('progress-bar');
         progressBar.addEventListener('input', function() {
+            // Оновлюємо колір при перетягуванні
+            app.updateRangeBackground(this);
             if(app.player && app.player.duration) {
                 const seekTo = app.player.getDuration() * (this.value / 100);
                 app.player.seekTo(seekTo, true);
@@ -38,12 +41,26 @@ const app = {
         });
 
         // Повзунок гучності
-        document.getElementById('volume-bar').addEventListener('input', function() {
+        const volBar = document.getElementById('volume-bar');
+        volBar.value = app.savedVolume;
+        app.updateRangeBackground(volBar); // Встановити колір одразу
+
+        volBar.addEventListener('input', function() {
+            app.updateRangeBackground(this);
+            localStorage.setItem('vt_volume', this.value); // Зберегти гучність
             if(app.player) app.player.setVolume(this.value);
         });
 
         // Завантаження бібліотеки
         app.renderLibrary();
+    },
+
+    // Допоміжна функція для зафарбовування повзунків (Spotify style)
+    updateRangeBackground: function(rangeInput) {
+        const val = rangeInput.value;
+        const max = rangeInput.max || 100;
+        const percentage = (val / max) * 100;
+        rangeInput.style.backgroundSize = percentage + '% 100%';
     },
 
     // Пошук музики
@@ -109,16 +126,26 @@ const app = {
         const idx = app.favorites.findIndex(f => f.id === id);
         if (idx === -1) {
             app.favorites.push({ id, snippet: { title, thumbnails: { medium: { url: thumb } } } });
+            app.showToast(`Додано в Улюблене: ${title.substring(0, 20)}...`);
         } else {
             app.favorites.splice(idx, 1);
+            app.showToast("Видалено з Улюбленого");
         }
         localStorage.setItem('vt_favs_v2', JSON.stringify(app.favorites));
         
         // Оновлюємо інтерфейс
         app.renderLibrary();
         if(document.getElementById('view-search').style.display !== 'none') {
-            app.search(); // Оновити сердечка в пошуку
+            app.search(); 
         }
+    },
+
+    // Спливаюче повідомлення
+    showToast: function(msg) {
+        const toast = document.getElementById("toast");
+        toast.innerText = msg;
+        toast.className = "toast show";
+        setTimeout(function(){ toast.className = toast.className.replace("show", ""); }, 3000);
     },
 
     renderLibrary: function() {
@@ -136,6 +163,11 @@ const app = {
             document.getElementById('current-thumb').src = thumb;
             document.getElementById('play-icon').className = 'fa-solid fa-circle-pause';
             app.isPlaying = true;
+
+            // Скидаємо прогрес бар
+            const progBar = document.getElementById('progress-bar');
+            progBar.value = 0;
+            app.updateRangeBackground(progBar);
         }
     },
 
@@ -157,7 +189,11 @@ const app = {
         
         if (duration) {
             const percent = (currentTime / duration) * 100;
-            document.getElementById('progress-bar').value = percent;
+            const progBar = document.getElementById('progress-bar');
+            progBar.value = percent;
+            
+            // Оновлюємо зелене зафарбування
+            app.updateRangeBackground(progBar);
             
             document.getElementById('current-time').innerText = app.formatTime(currentTime);
             document.getElementById('duration').innerText = app.formatTime(duration);
@@ -170,10 +206,9 @@ const app = {
         return `${min}:${sec < 10 ? '0' : ''}${sec}`;
     },
     
-    // Текст пісні (Google Search)
+    // Текст пісні
     findLyrics: function() {
         if(!app.currentTrack) return alert("Спочатку включи трек!");
-        // Прибираємо зайві слова з назви для кращого пошуку
         const cleanTitle = app.currentTrack.title.replace(/(\(|\[).*?(\)|\])/g, "").replace("Official Video", ""); 
         const url = `https://www.google.com/search?q=lyrics+${encodeURIComponent(cleanTitle)}`;
         window.open(url, '_blank');
@@ -188,27 +223,37 @@ const app = {
     }
 };
 
-// YouTube API Callback (має бути глобальним)
+// YouTube API Callback
 function onYouTubeIframeAPIReady() {
     app.player = new YT.Player('yt-placeholder', {
         height: '0',
         width: '0',
         playerVars: { 'autoplay': 0, 'controls': 0 },
         events: {
-            'onStateChange': onPlayerStateChange
+            'onStateChange': onPlayerStateChange,
+            'onReady': onPlayerReady // Додано
         }
     });
 }
 
+// Застосовуємо гучність відразу після готовності плеєра
+function onPlayerReady(event) {
+    event.target.setVolume(app.savedVolume);
+}
+
 function onPlayerStateChange(event) {
     const playBtn = document.getElementById('play-icon');
+    const visualizer = document.getElementById('visualizer');
+
     if (event.data === YT.PlayerState.PLAYING) {
         app.isPlaying = true;
         playBtn.className = 'fa-solid fa-circle-pause';
+        visualizer.classList.add('active'); // Включаємо візуалізатор
         app.progressInterval = setInterval(app.updateProgress, 1000);
     } else {
         app.isPlaying = false;
         playBtn.className = 'fa-solid fa-circle-play';
+        visualizer.classList.remove('active'); // Вимикаємо візуалізатор
         clearInterval(app.progressInterval);
     }
 }
