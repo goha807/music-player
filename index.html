@@ -55,11 +55,20 @@
         </main>
     </div>
 
+    <div id="toast" class="toast">Додано в Улюблене!</div>
+
     <div class="player-bar">
         <div class="track-info">
             <img src="https://via.placeholder.com/60" id="current-thumb" alt="">
             <div class="track-details">
-                <div class="track-name" id="current-title">Немає треку</div>
+                <div class="title-row">
+                    <div class="track-name" id="current-title">Немає треку</div>
+                    <div class="visualizer" id="visualizer">
+                        <div class="bar"></div>
+                        <div class="bar"></div>
+                        <div class="bar"></div>
+                    </div>
+                </div>
                 <div class="track-artist">YouTube Music</div>
             </div>
             <button class="lyrics-btn" onclick="app.findLyrics()" title="Знайти текст">
@@ -78,14 +87,14 @@
             
             <div class="progress-container">
                 <span id="current-time">0:00</span>
-                <input type="range" id="progress-bar" value="0" min="0" max="100" step="1">
+                <input type="range" id="progress-bar" class="styled-range" value="0" min="0" max="100" step="1">
                 <span id="duration">0:00</span>
             </div>
         </div>
 
         <div class="volume-controls">
             <i class="fa-solid fa-volume-high"></i>
-            <input type="range" id="volume-bar" value="100" min="0" max="100">
+            <input type="range" id="volume-bar" class="styled-range" value="100" min="0" max="100">
         </div>
     </div>
 
